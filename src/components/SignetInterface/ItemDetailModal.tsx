@@ -66,7 +66,7 @@ export function ItemDetailModal({ sessionId }: { sessionId: string }) {
  onClick={() => setSelectedItem(null)}
  >
  <div 
- className="bg-[#0D0D0F] border border-silver-DEFAULT/30 rounded-2xl w-full max-w-sm shadow-[0_0_50px_rgba(79,164,184,0.2)] overflow-hidden flex flex-col relative h-[85vh]"
+ className="bg-[#0D0D0F] border border-silver-DEFAULT/30 rounded-2xl w-full max-w-sm shadow-[0_0_50px_rgba(79,164,184,0.2)] overflow-hidden flex flex-col relative max-h-[85vh]"
  onClick={(e) => e.stopPropagation()}
  >
  <button 

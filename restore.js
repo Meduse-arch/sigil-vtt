@@ -1,9 +1,11 @@
+const fs = require('fs');
+const content = 
 import React, { useState } from 'react';
 import { Shield, Star, Sword, Package, Trash2, Hammer, Zap, Sparkles, Power, Info } from 'lucide-react';
 import { Item } from '../../services/items.service';
 import { useItemsStore } from '../../store/items';
 import { useCharactersStore } from '../../store/characters';
-import { usePeer } from '../../hooks/usePeer';
+import { usePeer } from '../../store/peer';
 import { useAuthStore } from '../../store/auth';
 import { useDiceStore } from '../../store/dice';
 import { DEFAULT_STATS, DEFAULT_BARS } from '../../systems/seal/constants';
@@ -12,7 +14,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { SkillDetailContent } from './SkillDetailContent';
 import { parseAndRoll } from '../../services/des.service';
-import { useSkillsStore } from '../../store/skills';
 
 interface ItemDetailContentProps {
  item: any;
@@ -49,7 +50,7 @@ export function ItemDetailContent({
  const [showSkillsModal, setShowSkillsModal] = useState(false);
  const [selectedSkillForDetail, setSelectedSkillForDetail] = useState<any | null>(null);
 
- // On retrouve la version la plus fraÃ®che du personnage et de l'item
+ // On retrouve la version la plus fraîche du personnage et de l'item
  const character = propCharacter ? (characters.find(c => c.id === propCharacter.id) || propCharacter) : null;
  
  const item = React.useMemo(() => {
@@ -69,7 +70,7 @@ export function ItemDetailContent({
  if (!item) return (
  <div className="flex flex-col items-center justify-center h-full opacity-40 py-20">
  <Package size={64} className="mb-4 text-silver-bright" />
- <span className="font-quantico tracking-widest uppercase text-glacier-bright text-xs">{t('context.selectRelic', 'SÃ©lectionnez une relique')}</span>
+ <span className="font-quantico tracking-widest uppercase text-glacier-bright text-xs">{t('context.selectRelic', 'Sélectionnez une relique')}</span>
  </div>
  );
 
@@ -86,12 +87,9 @@ export function ItemDetailContent({
  return character.inventory.filter((i: any) => i.id === item.id).length;
  }, [item, character?.inventory]);
 
- const handleUseSkill = async (baseSkill: any) => {
+ const handleUseSkill = async (skill: any) => {
   if (!character) return;
   
-  const template = useSkillsStore.getState().skills.find((s: any) => s.id === baseSkill.id);
-  const skill = template ? { ...template, ...baseSkill, costs: template.costs || baseSkill.costs, cost: template.cost || baseSkill.cost, effects: template.effects || baseSkill.effects } : baseSkill;
-
   const statValues: Record<string, number> = {};
   const labelMapping: Record<string, string> = {};
   DEFAULT_STATS.forEach((s: any) => {
@@ -107,22 +105,22 @@ export function ItemDetailContent({
   let costApplied = false;
   const diceResults: any[] = [];
 
-  const costsToApply = skill.costs || (skill.cost ? [skill.cost] : []);
+  const costsToApply = skill.costs || (skill.cost ? [{ mode: 'fixed', value: skill.cost.value, barId: skill.cost.barId }] : []);
   
   costsToApply.forEach((c: any) => {
-    const barId = c.barId?.toLowerCase();
+    const barId = c.barId;
     const currentVal = updatedBars[barId] || 0;
     let costValue = 0;
     if (c.mode === 'dice' && c.formula) {
       let formula = c.formula;
       Object.keys(statValues).sort((a, b) => b.length - a.length).forEach(key => {
-        formula = formula.replace(new RegExp(`(?<=\\b|d)${key}\\b`, 'gi'), `(${labelMapping[key]}=${statValues[key]})`);
+        formula = formula.replace(new RegExp(\(?<=\\\\b|d)\\\\\b\, 'gi'), \(\=\)\);
       });
       const rollRes = parseAndRoll(formula);
       costValue = rollRes.total;
-      diceResults.push({ rolls: rollRes.rolls || [], total: rollRes.total, bonus: 0, diceString: c.formula, label: `CoÃ»t en ${barId.toUpperCase()}`, color: '#ff4444', secret: false, timestamp: Date.now(), sender_id: user?.id, sender_name: character.name });
+      diceResults.push({ rolls: rollRes.rolls || [], total: rollRes.total, bonus: 0, diceString: c.formula, label: \Coût en \\, color: '#ff4444', secret: false, timestamp: Date.now(), sender_id: user?.id, sender_name: character.name });
     } else if (c.mode === 'percent') {
-      const maxKey = `max${barId.charAt(0).toUpperCase()}${barId.slice(1)}`;
+      const maxKey = \max\\\;
       const maxVal = updatedBars[maxKey] || currentVal || 100;
       costValue = Math.round(maxVal * (c.value / 100));
     } else {
@@ -140,7 +138,7 @@ export function ItemDetailContent({
       if (eff.mode === 'dice' && formulaStr) {
         let formula = formulaStr;
         Object.keys(statValues).sort((a, b) => b.length - a.length).forEach(key => {
-          formula = formula.replace(new RegExp(`(?<=\\b|d)${key}\\b`, 'gi'), `(${labelMapping[key]}=${statValues[key]})`);
+          formula = formula.replace(new RegExp(\(?<=\\\\b|d)\\\\\b\, 'gi'), \(\=\)\);
         });
         const rollRes = parseAndRoll(formula);
         if (rollRes.rolls.length > 0 || rollRes.total > 0) {
@@ -160,9 +158,8 @@ export function ItemDetailContent({
     const charsStore = useCharactersStore.getState();
     charsStore.addOrUpdateCharacter(updatedChar, false);
     if (window.electronAPI) {
-      import('../../services/characters.service').then(({ addSessionCharacter }) => {
-        addSessionCharacter(updatedChar as any);
-      });
+      const { addSessionCharacter } = require('../../services/characters.service');
+      addSessionCharacter(updatedChar as any);
     }
     broadcast({ type: 'CHAR_UPDATE', payload: updatedChar });
   }
@@ -175,7 +172,7 @@ export function ItemDetailContent({
     skill_name: skill.name,
     skill_type: skill.type,
     description: skill.description,
-    action: `UtilisÃ©e depuis ${item.name}`,
+    action: \Utilisée depuis \\,
     sender_id: user?.id,
     sender_name: character.name,
     results: diceResults
@@ -183,12 +180,8 @@ export function ItemDetailContent({
   broadcast({ type: 'SKILL_USED', payload: logPayload });
  };
 
- const handleToggleItemSkillActive = async (baseSkill: any) => {
+ const handleToggleItemSkillActive = async (skillToToggle: any) => {
   if (!character || !item) return;
-  
-  const template = useSkillsStore.getState().skills.find((s: any) => s.id === baseSkill.id);
-  const skillToToggle = template ? { ...template, ...baseSkill, costs: template.costs || baseSkill.costs, cost: template.cost || baseSkill.cost } : baseSkill;
-
   const newActive = !skillToToggle.is_active;
   
   let updatedModifiers = skillToToggle.modifiers || [];
@@ -203,21 +196,21 @@ export function ItemDetailContent({
   DEFAULT_BARS.forEach((b: any) => { statValues[b.id.toLowerCase()] = (character.bars?.[b.id] || 0); labelMapping[b.id.toLowerCase()] = b.name; });
 
   if (newActive) {
-    const costsToApply = skillToToggle.costs || (skillToToggle.cost ? [skillToToggle.cost] : []);
+    const costsToApply = skillToToggle.costs || (skillToToggle.cost ? [{ mode: 'fixed', value: skillToToggle.cost.value, barId: skillToToggle.cost.barId }] : []);
     costsToApply.forEach((c: any) => {
-      const barId = c.barId?.toLowerCase();
+      const barId = c.barId;
       const currentVal = updatedBars[barId] || 0;
       let costValue = 0;
       if (c.mode === 'dice' && c.formula) {
         let formula = c.formula;
         Object.keys(statValues).sort((a, b) => b.length - a.length).forEach(key => {
-          formula = formula.replace(new RegExp(`(?<=\\b|d)${key}\\b`, 'gi'), `(${labelMapping[key]}=${statValues[key]})`);
+          formula = formula.replace(new RegExp(\(?<=\\\\b|d)\\\\\b\, 'gi'), \(\=\)\);
         });
         const rollRes = parseAndRoll(formula);
         costValue = rollRes.total;
-        diceResults.push({ rolls: rollRes.rolls || [], total: rollRes.total, bonus: 0, diceString: c.formula, label: `CoÃ»t en ${barId.toUpperCase()}`, color: '#ff4444', secret: false, timestamp: Date.now(), sender_id: user?.id, sender_name: character.name });
+        diceResults.push({ rolls: rollRes.rolls || [], total: rollRes.total, bonus: 0, diceString: c.formula, label: \Coût en \\, color: '#ff4444', secret: false, timestamp: Date.now(), sender_id: user?.id, sender_name: character.name });
       } else if (c.mode === 'percent') {
-        const maxKey = `max${barId.charAt(0).toUpperCase()}${barId.slice(1)}`;
+        const maxKey = \max\\\;
         const maxVal = updatedBars[maxKey] || currentVal || 100;
         costValue = Math.round(maxVal * (c.value / 100));
       } else {
@@ -231,7 +224,7 @@ export function ItemDetailContent({
       if (m.mode === 'dice' && m.formula) {
         let formula = m.formula;
         Object.keys(statValues).sort((a, b) => b.length - a.length).forEach(key => {
-          formula = formula.replace(new RegExp(`(?<=\\b|d)${key}\\b`, 'gi'), `(${labelMapping[key]}=${statValues[key]})`);
+          formula = formula.replace(new RegExp(\(?<=\\\\b|d)\\\\\b\, 'gi'), \(\=\)\);
         });
         const rollRes = parseAndRoll(formula);
         if (rollRes.rolls.length > 0) {
@@ -240,7 +233,7 @@ export function ItemDetailContent({
             total: rollRes.total,
             bonus: 0,
             diceString: m.formula,
-            label: `Bonus ${m.targetId}`,
+            label: \Bonus \\,
             groups: rollRes.groups,
             color: '#3b82f6',
             secret: false,
@@ -248,7 +241,7 @@ export function ItemDetailContent({
             sender_id: user?.id,
             sender_name: character.name,
             is_skill_roll: true,
-            description: m.description || `Modifie ${m.targetId}`
+            description: m.description || \Modifie \\
           });
         }
         return { ...m, value: rollRes.total };
@@ -261,7 +254,7 @@ export function ItemDetailContent({
         if (eff.mode === 'dice' && eff.formula) {
           let formula = eff.formula;
           Object.keys(statValues).sort((a, b) => b.length - a.length).forEach(key => {
-            formula = formula.replace(new RegExp(`(?<=\\b|d)${key}\\b`, 'gi'), `(${labelMapping[key]}=${statValues[key]})`);
+            formula = formula.replace(new RegExp(\(?<=\\\\b|d)\\\\\b\, 'gi'), \(\=\)\);
           });
           const rollRes = parseAndRoll(formula);
           if (rollRes.rolls.length > 0 || rollRes.total > 0) {
@@ -270,7 +263,7 @@ export function ItemDetailContent({
               total: rollRes.total,
               bonus: 0,
               diceString: eff.formula,
-              label: eff.type === 'damage' ? 'DÃ©gÃ¢ts' : eff.type === 'heal' ? 'Soin' : eff.type === 'buff' ? 'AmÃ©lioration' : eff.type === 'debuff' ? 'MalÃ©diction' : 'Utilitaire',
+              label: eff.type === 'damage' ? 'Dégâts' : eff.type === 'heal' ? 'Soin' : eff.type === 'buff' ? 'Amélioration' : eff.type === 'debuff' ? 'Malédiction' : 'Utilitaire',
               groups: rollRes.groups,
               color: '#d4af37',
               secret: false,
@@ -286,6 +279,7 @@ export function ItemDetailContent({
     }
   }
 
+  // CORRECT FALLBACK LOGIC HERE
   const updatedInventory = (character.inventory || []).map((invItem: any) => {
     if (invItem.instanceId === item.instanceId) {
       return {
@@ -307,9 +301,8 @@ export function ItemDetailContent({
   const charsStore = useCharactersStore.getState();
   charsStore.addOrUpdateCharacter(updatedChar, false);
   if (window.electronAPI) {
-    import('../../services/characters.service').then(({ addSessionCharacter }) => {
-      addSessionCharacter(updatedChar as any);
-    });
+    const { addSessionCharacter } = require('../../services/characters.service');
+    addSessionCharacter(updatedChar as any);
   }
   broadcast({ type: 'CHAR_UPDATE', payload: updatedChar });
   
@@ -323,7 +316,7 @@ export function ItemDetailContent({
     skill_name: skillToToggle.name,
     skill_type: skillToToggle.type,
     description: skillToToggle.description,
-    action: `${newActive ? 'ActivÃ©e' : 'DÃ©sactivÃ©e'} depuis ${item.name}`,
+    action: \\ depuis \\,
     sender_id: user?.id,
     sender_name: character.name,
     results: diceResults
@@ -332,7 +325,8 @@ export function ItemDetailContent({
  };
 
  return (
- <div className={`w-full min-h-0 flex flex-col relative overflow-hidden bg-[#0D0D0F] ${fullHeight ? 'flex-1' : ''}`}>
+ <div className={\w-full min-h-0 flex flex-col relative overflow-hidden bg-[#0D0D0F] \\}>
+ {/* --- BLOCK IMAGE (Plus compact) --- */}
  <div 
  className="relative h-32 shrink-0 flex items-center justify-center overflow-hidden border-b border-silver-DEFAULT/20"
  style={{
@@ -342,7 +336,7 @@ export function ItemDetailContent({
  >
  {item.image_url ? (
  <>
- <div className="absolute inset-0 bg-black/60" style={{ backgroundImage: `url(${item.image_url})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.15 }} />
+ <div className="absolute inset-0 bg-black/60" style={{ backgroundImage: \url(\)\, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.15 }} />
  <AssetImage src={item.image_url} alt="" className="relative z-10 w-full h-full object-contain p-3 drop-shadow-2xl" />
  </>
  ) : (
@@ -371,19 +365,22 @@ export function ItemDetailContent({
  </div>
  </div>
 
+ {/* --- CORPS SCROLLABLE PAR BLOCKS --- */}
  <div className="flex-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar">
 
+ {/* BOUTON COMPÉTENCES (Placé bien en évidence au-dessus de la description) */}
  {item.skills && item.skills.length > 0 && (
    <div className="shrink-0 px-4 pt-4 pb-1">
      <button 
        onClick={() => setShowSkillsModal(true)}
        className="w-full py-3 rounded-xl font-quantico font-black text-[12px] tracking-[0.2em] transition-all flex items-center justify-center gap-2 border bg-glacier-DEFAULT/10 text-glacier-bright border-glacier-DEFAULT/30 hover:bg-glacier-DEFAULT/20 hover:shadow-[0_0_15px_rgba(79,164,184,0.2)]"
      >
-       <Sparkles size={16} /> VOIR LES COMPÃ‰TENCES LIÃ‰ES
+       <Sparkles size={16} /> VOIR LES COMPÉTENCES LIÉES
      </button>
    </div>
  )}
  
+ {/* BLOCK DESCRIPTION (Plus compact) */}
  <div className="shrink-0 px-4 pt-3 pb-2 border-b border-white/5">
  <div className="flex items-center gap-2 mb-2 opacity-40">
  <div className="h-px flex-1 bg-glacier-DEFAULT/30" />
@@ -392,11 +389,12 @@ export function ItemDetailContent({
  </div>
  <div className="pr-2">
  <p className="font-garamond italic text-xs text-white/50 leading-relaxed text-center">
- "{item.description || t('context.noItemStory', "Aucun rÃ©cit n'accompagne cet objet...")}"
+ "{item.description || t('context.noItemStory', "Aucun récit n'accompagne cet objet...")}"
  </p>
  </div>
  </div>
 
+ {/* BLOCK MODIFICATEURS */}
  <div className="shrink-0 px-4 py-3 min-h-0 space-y-4">
  <div>
  <div className="flex items-center gap-2 mb-3 opacity-40">
@@ -420,7 +418,7 @@ export function ItemDetailContent({
  </span>
  </div>
  <span className="text-xs font-quantico font-black text-glacier-bright">
- {m.mode === 'dice' ? m.formula : `${m.value >= 0 ? '+' : ''}${m.value}${m.mode === 'percent' ? '%' : ''}`}
+ {m.mode === 'dice' ? m.formula : \\\\\}
  </span>
  </div>
  ))}
@@ -436,9 +434,11 @@ export function ItemDetailContent({
  </div>
  </div>
 
+ {/* --- FOOTER ACTIONS FIXE (Conditionnel) --- */}
  {showActions && (
  <div className="p-3 bg-black/40 border-t border-white/5 backdrop-blur-xl shrink-0">
  <div className="flex flex-col gap-1.5">
+ {/* Actions de Personnage */}
  {character && (
  <>
  {isConsumable ? (
@@ -451,19 +451,16 @@ export function ItemDetailContent({
  ) : onToggleEquip && (
  <button 
  onClick={onToggleEquip}
- className={`w-full py-2.5 rounded-xl font-quantico font-black text-xs tracking-[0.2em] transition-all flex items-center justify-center gap-3 border ${
- isEquipped 
- ? 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20' 
- : 'bg-glacier-DEFAULT text-black border-silver-DEFAULT hover:shadow-[0_0_20px_rgba(79,164,184,0.3)]'
- }`}
+ className={\w-full py-2.5 rounded-xl font-quantico font-black text-xs tracking-[0.2em] transition-all flex items-center justify-center gap-3 border \\}
  >
  {isEquipped ? <Trash2 size={12} /> : <Shield size={12} />}
- {isEquipped ? t('common.unequip', 'DÃ©sÃ©quiper').toUpperCase() : t('common.equip', 'Ã‰quiper').toUpperCase()}
+ {isEquipped ? t('common.unequip', 'Déséquiper').toUpperCase() : t('common.equip', 'Équiper').toUpperCase()}
  </button>
  )}
  </>
  )}
 
+ {/* Actions MJ */}
  {isMJ && (
  <div className="flex gap-1.5">
  {onGive && character && (
@@ -496,11 +493,12 @@ export function ItemDetailContent({
  </div>
  )}
  
+ {/* MODAL DES COMPÉTENCES */}
  {showSkillsModal && (
    <div className="absolute inset-0 z-50 flex flex-col bg-black/95 backdrop-blur-md animate-in fade-in duration-200">
      <div className="p-4 border-b border-white/10 flex justify-between items-center bg-[#0D0D0F]">
        <h3 className="text-sm font-quantico font-black text-glacier-bright uppercase tracking-[0.2em] flex items-center gap-2">
-         <Sparkles size={16} /> CompÃ©tences
+         <Sparkles size={16} /> Compétences
        </h3>
        <button onClick={() => {
          if (selectedSkillForDetail) setSelectedSkillForDetail(null);
@@ -514,6 +512,12 @@ export function ItemDetailContent({
          <div className="h-full">
            <SkillDetailContent 
              skill={selectedSkillForDetail}
+             character={character}
+             isEquipped={isEquipped}
+             onBack={() => setSelectedSkillForDetail(null)}
+             onToggleActive={() => handleToggleItemSkillActive(selectedSkillForDetail)}
+             onUse={() => { handleUseSkill(selectedSkillForDetail); setSelectedSkillForDetail(null); setShowSkillsModal(false); }}
+             isItemSkill={true}
            />
          </div>
        ) : (
@@ -523,16 +527,16 @@ export function ItemDetailContent({
                <div className="flex justify-between items-start">
                  <div className="flex-1 min-w-0 pr-4">
                    <h4 className="text-sm font-quantico font-black text-white uppercase tracking-widest truncate">{skill.name}</h4>
-                   <span className="text-[10px] font-mono text-silver-bright/50 uppercase">{skill.type || 'CompÃ©tence'}</span>
+                   <span className="text-[10px] font-mono text-silver-bright/50 uppercase">{skill.type || 'Compétence'}</span>
                  </div>
                  <div className="flex items-center gap-2 shrink-0">
                    <button 
                      onClick={() => setSelectedSkillForDetail(skill)}
                      className="px-2 py-1.5 rounded-lg text-glacier-bright hover:bg-glacier-DEFAULT/20 transition-colors flex items-center gap-1 border border-transparent hover:border-glacier-DEFAULT/30"
-                     title="DÃ©tails"
+                     title="Détails"
                    >
                      <Info size={14} />
-                     <span className="text-[10px] font-quantico uppercase tracking-widest hidden sm:inline">DÃ©tails</span>
+                     <span className="text-[10px] font-quantico uppercase tracking-widest hidden sm:inline">Détails</span>
                    </button>
                    {character && isEquipped && (
                      <div className="flex items-center gap-2 pl-2 border-l border-white/10">
@@ -547,13 +551,9 @@ export function ItemDetailContent({
                        {skill.type === 'passive_toggle' && (
                          <button 
                            onClick={() => handleToggleItemSkillActive(skill)}
-                           className={`px-3 py-2 rounded-xl font-quantico font-black text-[10px] tracking-widest flex items-center gap-2 transition-all ${
-                             skill.is_active 
-                               ? 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/40' 
-                               : 'bg-glacier-DEFAULT text-black hover:shadow-[0_0_15px_rgba(79,164,184,0.4)]'
-                           }`}
+                           className={\px-3 py-2 rounded-xl font-quantico font-black text-[10px] tracking-widest flex items-center gap-2 transition-all \\}
                          >
-                           <Power size={12} /> {skill.is_active ? 'DÃ‰SACTIVER' : 'ACTIVER'}
+                           <Power size={12} /> {skill.is_active ? 'DÉSACTIVER' : 'ACTIVER'}
                          </button>
                        )}
                      </div>
@@ -570,3 +570,6 @@ export function ItemDetailContent({
  </div>
  );
 }
+;
+fs.writeFileSync('src/components/SignetInterface/ItemDetailContent.tsx', content);
+console.log('Restored');

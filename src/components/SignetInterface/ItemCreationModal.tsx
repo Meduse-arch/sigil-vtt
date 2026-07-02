@@ -11,6 +11,7 @@ import { addSessionCharacter } from '../../services/characters.service';
 import { useSessionStore } from '../../store/session';
 import { useAssetUpload } from '../../hooks/useAssetUpload';
 import { useTagsStore } from '../../store/tags';
+import { useSkillsStore } from '../../store/skills';
 import { AssetImage } from '../AssetImage';
 import { useTranslation } from 'react-i18next';
 
@@ -42,8 +43,10 @@ export function ItemCreationModal({ sessionId }: ItemCreationModalProps) {
  const [category, setCategory] = useState('Divers');
  const { imageUrl, setImageUrl, isUploading, fileInputRef, previewUrl, handleFileUpload } = useAssetUpload();
  const { tags } = useTagsStore();
+ const { skills } = useSkillsStore();
  const [modifiers, setModifiers] = useState<ItemModifier[]>([]);
  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+ const [selectedSkills, setSelectedSkills] = useState<any[]>([]);
 
  useEffect(() => {
  if (showCreateModal && itemToEdit) {
@@ -53,6 +56,7 @@ export function ItemCreationModal({ sessionId }: ItemCreationModalProps) {
  setImageUrl(itemToEdit.image_url || '');
  setModifiers(itemToEdit.modifiers || []);
  setSelectedTags(itemToEdit.tags || []);
+ setSelectedSkills(itemToEdit.skills || []);
  } else if (showCreateModal) {
  resetForm();
  }
@@ -70,6 +74,7 @@ export function ItemCreationModal({ sessionId }: ItemCreationModalProps) {
  setImageUrl('');
  setModifiers([]);
  setSelectedTags([]);
+ setSelectedSkills([]);
  };
 
  const handleClose = () => {
@@ -116,7 +121,8 @@ export function ItemCreationModal({ sessionId }: ItemCreationModalProps) {
  image_url: imageUrl,
  effects: [],
  modifiers,
- tags: selectedTags
+ tags: selectedTags,
+ skills: selectedSkills
  };
 
  if (itemCreationType === 'forge') {
@@ -382,6 +388,52 @@ export function ItemCreationModal({ sessionId }: ItemCreationModalProps) {
  {modifiers.length === 0 && (
  <div className="py-10 flex flex-col items-center justify-center rounded-3xl border border-dashed border-white/20 bg-white/[0.02]">
  <span className="text-xs font-quantico text-white/50 uppercase tracking-[0.4em]">{t('context.noModifiers', "Aucun modificateur ajouté")}</span>
+ </div>
+ )}
+ </div>
+ </div>
+ 
+ {/* Compétences Section */}
+ <div className="space-y-4 mt-8">
+ <div className="flex justify-between items-center border-b border-silver-DEFAULT/30 pb-3">
+ <h3 className="text-xs font-quantico font-black text-glacier-bright uppercase tracking-[0.3em] flex items-center gap-2">
+ <Sparkles size={16} className="text-glacier-bright" /> {t('context.skills', "Compétences liées")}
+ </h3>
+ <select 
+ className="bg-black/60 border border-silver-DEFAULT/20 rounded-lg px-2 py-1 text-xs text-white outline-none cursor-pointer max-w-[150px]"
+ value=""
+ onChange={(e) => {
+ const val = e.target.value;
+ if (val) {
+ const skill = skills.find(s => s.id === val);
+ if (skill && !selectedSkills.find(s => s.id === skill.id)) {
+ setSelectedSkills([...selectedSkills, skill]);
+ }
+ }
+ }}
+ >
+ <option value="" disabled>{t('common.add', "Ajouter...")}</option>
+ {skills.filter(s => !selectedSkills.find(sel => sel.id === s.id)).map(s => (
+ <option key={s.id} value={s.id}>{s.name}</option>
+ ))}
+ </select>
+ </div>
+ 
+ <div className="flex flex-col gap-2 max-h-48 overflow-y-auto custom-scrollbar pr-2">
+ {selectedSkills.map(skill => (
+ <div key={skill.id} className="flex justify-between items-center bg-white/[0.02] border border-white/10 rounded-xl p-3">
+ <span className="text-xs font-quantico text-silver-bright">{skill.name}</span>
+ <button 
+ onClick={() => setSelectedSkills(selectedSkills.filter(s => s.id !== skill.id))}
+ className="text-red-500/40 hover:text-red-500 transition-colors"
+ >
+ <X size={14} />
+ </button>
+ </div>
+ ))}
+ {selectedSkills.length === 0 && (
+ <div className="py-6 flex flex-col items-center justify-center rounded-3xl border border-dashed border-white/20 bg-white/[0.02]">
+ <span className="text-xs font-quantico text-white/50 uppercase tracking-[0.4em]">{t('context.noSkills', "Aucune compétence liée")}</span>
  </div>
  )}
  </div>

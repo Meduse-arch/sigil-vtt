@@ -30,7 +30,7 @@ export async function loginUser(pseudo: string, mot_de_passe: string) {
   return { id: data.id, pseudo: data.pseudo, role: data.role };
 }
 
-export async function signupUser(pseudo: string, mot_de_passe: string) {
+export async function signupUser(pseudo: string, mot_de_passe: string, email?: string) {
   // Vérifie si le pseudo existe déjà
   const { data: existingUser } = await supabase
     .from('comptes')
@@ -46,12 +46,13 @@ export async function signupUser(pseudo: string, mot_de_passe: string) {
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(mot_de_passe, salt);
 
+  const newAccount: any = { pseudo, mot_de_passe: hashedPassword, role: 'joueur' };
+  if (email) newAccount.email = email;
+
   // Crée le nouvel utilisateur
   const { data, error } = await supabase
     .from('comptes')
-    .insert([
-      { pseudo, mot_de_passe: hashedPassword, role: 'joueur' }
-    ])
+    .insert([newAccount])
     .select()
     .single();
 

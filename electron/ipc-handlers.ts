@@ -65,7 +65,8 @@ function getSessionDb(inputId: string): Database.Database {
           image_url TEXT,
           effects TEXT,
           modifiers TEXT,
-          tags TEXT
+          tags TEXT,
+          skills TEXT
         );
 
         CREATE TABLE IF NOT EXISTS skills (
@@ -201,6 +202,10 @@ function getSessionDb(inputId: string): Database.Database {
       if (!itemTableInfo.some(col => col.name === 'tags')) {
         console.log(`[DB] Migration: Ajout de la colonne tags à la table items pour la session ${realSessionId}`);
         db.exec('ALTER TABLE items ADD COLUMN tags TEXT');
+      }
+      if (!itemTableInfo.some(col => col.name === 'skills')) {
+        console.log(`[DB] Migration: Ajout de la colonne skills à la table items pour la session ${realSessionId}`);
+        db.exec('ALTER TABLE items ADD COLUMN skills TEXT');
       }
 
       const combatActorsTableInfo = db.prepare("PRAGMA table_info(combat_actors)").all() as any[];
@@ -436,6 +441,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null) {
         modifiers: s.modifiers ? JSON.parse(s.modifiers) : [],
         effects: s.effects ? JSON.parse(s.effects) : [],
         cost: s.cost ? JSON.parse(s.cost) : null,
+        costs: s.cost ? (Array.isArray(JSON.parse(s.cost)) ? JSON.parse(s.cost) : [JSON.parse(s.cost)]) : [],
         condition_tags: s.condition_tags ? JSON.parse(s.condition_tags) : []
       }));
     } catch (err) {
@@ -459,7 +465,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null) {
         JSON.stringify(skill.tags || []), 
         JSON.stringify(skill.modifiers || []), 
         JSON.stringify(skill.effects || []), 
-        JSON.stringify(skill.cost || null), 
+        JSON.stringify(skill.costs || skill.cost || null), 
         skill.condition_type || null, 
         JSON.stringify(skill.condition_tags || [])
       );
@@ -528,7 +534,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null) {
         ...i,
         effects: i.effects ? JSON.parse(i.effects) : [],
         modifiers: i.modifiers ? JSON.parse(i.modifiers) : [],
-        tags: i.tags ? JSON.parse(i.tags) : []
+        tags: i.tags ? JSON.parse(i.tags) : [],
+        skills: i.skills ? JSON.parse(i.skills) : []
       }));
     } catch (err) {
       console.error('[DB] Erreur items:getAll:', err);
@@ -540,9 +547,9 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null) {
     try {
       const db = getSessionDb(sessionId);
       db.prepare(`
-        INSERT OR REPLACE INTO items (id, name, description, category, image_url, effects, modifiers, tags)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(item.id, item.name, item.description, item.category, item.image_url, JSON.stringify(item.effects || []), JSON.stringify(item.modifiers || []), JSON.stringify(item.tags || []));
+        INSERT OR REPLACE INTO items (id, name, description, category, image_url, effects, modifiers, tags, skills)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(item.id, item.name, item.description, item.category, item.image_url, JSON.stringify(item.effects || []), JSON.stringify(item.modifiers || []), JSON.stringify(item.tags || []), JSON.stringify(item.skills || []));
       return true;
     } catch (err) {
       console.error('[DB] Erreur items:add:', err);

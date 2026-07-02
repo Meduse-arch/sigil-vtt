@@ -16,6 +16,7 @@ export interface Item {
   modifiers: ItemModifier[];
   effects: any[];
   tags?: string[];
+  skills?: any[];
 }
 
 export const itemsService = {

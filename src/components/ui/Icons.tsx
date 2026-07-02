@@ -51,6 +51,7 @@ import {
  MousePointer2,
  Music,
  Network,
+ Mail,
  Package,
  Palette,
  Pause,
@@ -128,6 +129,7 @@ export const Icons = {
  ArrowLeft,
  RefreshCcw,
 
+  Mail,
  // --- Authentification & Utilisateurs ---
  User,
  Users,

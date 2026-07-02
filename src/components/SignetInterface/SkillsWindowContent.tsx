@@ -20,6 +20,7 @@ import {
  Hammer,
  User,
  Power,
+ Info,
  ChevronRight
 } from 'lucide-react';
 import { SkillCreationModal } from './SkillCreationModal';
@@ -188,15 +189,54 @@ export function SkillsWindowContent({ sessionId, variant = 'default' }: SkillsWi
  });
  }
  }
+  const updatedBars = { ...(character.bars || {}) };
+  let costApplied = false;
 
- const updatedChar = {
- ...character,
+  if (newActive) {
+    const costsToApply = skillToToggle.costs || (skillToToggle.cost ? [skillToToggle.cost] : []);
+    costsToApply.forEach((c: any) => {
+      const barId = c.barId?.toLowerCase();
+      const currentVal = updatedBars[barId] || 0;
+      let costValue = 0;
+      if (c.mode === 'dice' && c.formula) {
+        let formula = c.formula;
+        const { DEFAULT_STATS, DEFAULT_BARS } = require('../../systems/seal/constants');
+        const statValues: Record<string, number> = {};
+        const labelMapping: Record<string, string> = {};
+        DEFAULT_STATS.forEach((s: any) => { statValues[s.id] = character.stats?.[s.id] || 20; labelMapping[s.id] = s.name; });
+        DEFAULT_BARS.forEach((b: any) => { statValues[b.id] = character.bars?.[b.id] || 100; labelMapping[b.id] = b.name; });
+        
+        Object.keys(statValues).sort((a, b) => b.length - a.length).forEach(key => {
+          formula = formula.replace(new RegExp(`(?<=\\b|d)${key}\\b`, 'gi'), `(${labelMapping[key]}=${statValues[key]})`);
+        });
+        const { parseAndRoll } = require('../../services/des.service');
+        const rollRes = parseAndRoll(formula);
+        costValue = rollRes.total;
+        diceResults.push({ rolls: rollRes.rolls || [], total: rollRes.total, bonus: 0, diceString: c.formula, label: `Coût en ${barId.toUpperCase()}`, color: '#ff4444', secret: false, timestamp: Date.now(), sender_id: user?.id, sender_name: character.name });
+      } else if (c.mode === 'percent') {
+        const maxKey = `max${barId.charAt(0).toUpperCase()}${barId.slice(1)}`;
+        const maxVal = updatedBars[maxKey] || currentVal || 100;
+        costValue = Math.round(maxVal * (c.value / 100));
+      } else {
+        costValue = c.value || 0;
+      }
+      updatedBars[barId] = Math.max(0, currentVal - costValue);
+      costApplied = true;
+    });
+  }
+
+  const updatedChar = {
+  ...character,
+  bars: costApplied ? updatedBars : character.bars,
  custom_skills: (character.custom_skills || []).map((s: any) => 
  (s.id === skillToToggle.id) ? { ...s, is_active: newActive, modifiers: updatedModifiers } : s
  )
  };
  addOrUpdateCharacter(updatedChar, false);
- if (window.electronAPI) await addSessionCharacter(updatedChar);
+ if (window.electronAPI) {
+    const { addSessionCharacter } = await import('../../services/characters.service');
+    await addSessionCharacter(updatedChar as any);
+  }
  broadcast({ type: 'CHAR_UPDATE', payload: updatedChar });
  
  if (diceResults.length > 0) {
@@ -297,6 +337,36 @@ export function SkillsWindowContent({ sessionId, variant = 'default' }: SkillsWi
       labelMapping[b.id.toLowerCase()] = b.name;
     });
 
+    // Calcul des coûts
+    const updatedBars = { ...(character.bars || {}) };
+    let costApplied = false;
+
+    const costsToApply = skill.costs || (skill.cost ? [skill.cost] : []);
+    
+    costsToApply.forEach((c: any) => {
+      const barId = c.barId?.toLowerCase();
+      const currentVal = updatedBars[barId] || 0;
+      let costValue = 0;
+      if (c.mode === 'dice' && c.formula) {
+        let formula = c.formula;
+        Object.keys(statValues).sort((a, b) => b.length - a.length).forEach(key => {
+          formula = formula.replace(new RegExp(`(?<=\\b|d)${key}\\b`, 'gi'), `(${labelMapping[key]}=${statValues[key]})`);
+        });
+        const rollRes = parseAndRoll(formula);
+        costValue = rollRes.total;
+        diceResults.push({ rolls: rollRes.rolls || [], total: rollRes.total, bonus: 0, diceString: c.formula, label: `Coût en ${barId.toUpperCase()}`, color: '#ff4444', secret: false, timestamp: Date.now(), sender_id: user?.id, sender_name: character.name });
+      } else if (c.mode === 'percent') {
+        const maxKey = `max${barId.charAt(0).toUpperCase()}${barId.slice(1)}`;
+        const maxVal = updatedBars[maxKey] || currentVal || 100;
+        costValue = Math.round(maxVal * (c.value / 100));
+      } else {
+        costValue = c.value || 0;
+      }
+      
+      updatedBars[barId] = Math.max(0, currentVal - costValue);
+      costApplied = true;
+    });
+
     if (skill.effects && skill.effects.length > 0) {
       skill.effects.forEach((eff: any) => {
         const label = eff.description || skill.name;
@@ -314,6 +384,19 @@ export function SkillsWindowContent({ sessionId, variant = 'default' }: SkillsWi
       });
     }
     const finalResults = diceResults.length > 0 ? diceResults : [{ rolls: [], total: 0, bonus: 0, diceString: 'Utilisation', label: skill.name, color: '#d4af37', secret: false, timestamp: Date.now(), sender_id: user?.id, sender_name: character.name }];
+    
+    // Si un coût a été appliqué, on met à jour le personnage
+    if (costApplied) {
+      const updatedChar = { ...character, bars: updatedBars };
+      const { useCharactersStore } = await import('../../store/characters');
+      useCharactersStore.getState().addOrUpdateCharacter(updatedChar, false);
+      if (window.electronAPI) {
+        const { addSessionCharacter } = await import('../../services/characters.service');
+        await addSessionCharacter(updatedChar as any);
+      }
+      broadcast({ type: 'CHAR_UPDATE', payload: updatedChar });
+    }
+
     setDiceResult(finalResults);
     finalResults.forEach(r => broadcast({ type: 'DICE_ROLL', payload: r }));
   };
@@ -499,13 +582,14 @@ export function SkillsWindowContent({ sessionId, variant = 'default' }: SkillsWi
  )}
  </div>
 
- {/* Bouton Détails (Chevron) */}
+ {/* Bouton Détails (Info) */}
  <button 
  onClick={(e) => { e.stopPropagation(); setSelectedSkill(skill, false); }}
- className="p-1.5 rounded-lg text-white/60 hover:text-glacier-bright hover:bg-white/5 transition-all opacity-30 group-hover:opacity-100"
+ className="px-2 py-1.5 rounded-lg text-glacier-bright hover:bg-glacier-DEFAULT/20 transition-colors flex items-center gap-1 border border-transparent hover:border-glacier-DEFAULT/30"
  title={t('common.seeDetails', "Voir les détails")}
  >
- <ChevronRight size={14} />
+ <Info size={14} />
+ <span className="text-[10px] font-quantico uppercase tracking-widest hidden sm:inline">Détails</span>
  </button>
 
  {isMJ && (

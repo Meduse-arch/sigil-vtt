@@ -19,6 +19,7 @@ export function AuthPage({ onEnterApp }: AuthPageProps) {
  const [showAuthModal, setShowAuthModal] = useState(false);
  const [isLogin, setIsLogin] = useState(true);
  const [pseudo, setPseudo] = useState('');
+ const [email, setEmail] = useState('');
  const [password, setPassword] = useState('');
  const [rememberMe, setRememberMe] = useState(false);
  const [isLoading, setIsLoading] = useState(false);
@@ -65,11 +66,13 @@ export function AuthPage({ onEnterApp }: AuthPageProps) {
  setError(null);
 
  try {
- const user = isLogin 
- ? await loginUser(pseudo, password)
- : await signupUser(pseudo, password);
- 
- setUser(user, rememberMe);
+ if (isLogin) {
+ const userData = await loginUser(pseudo, password);
+ setUser(userData, rememberMe);
+ } else {
+ const userData = await signupUser(pseudo, password, email);
+ setUser(userData, rememberMe);
+ }
  // Une fois connecté, on déverrouille l'app
  onEnterApp();
  } catch (err: any) {
@@ -138,6 +141,17 @@ export function AuthPage({ onEnterApp }: AuthPageProps) {
  leftIcon={<Icons.User className="w-5 h-5" />}
  required
  />
+
+ {!isLogin && (
+ <Input
+ label={t('auth.emailLabel', 'Email (Optionnel)')}
+ type="email"
+ value={email}
+ onChange={(e) => setEmail(e.target.value)}
+ placeholder={t('auth.emailPlaceholder', 'pour récupérer votre compte')}
+ leftIcon={<Icons.Mail className="w-5 h-5" />}
+ />
+ )}
 
  <Input
  label={t('auth.passwordLabel')}

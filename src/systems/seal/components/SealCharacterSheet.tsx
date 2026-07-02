@@ -369,15 +369,24 @@ export function SealCharacterSheet({
   const statsFlat: Record<string, number> = {};
   const statsPercent: Record<string, number> = {};
   const barsFlat: Record<string, { value: number; max: number }> = {};
-  
   if (!character) return { stats: {}, bars: {} };
 
   // Construire le réservoir de tags actifs (séparé par source)
   const activeItemTags = new Set<string>(extraTags);
   const activeSkillTags = new Set<string>();
+  // Extraire les tags d'objets (et de leurs compétences passives actives)
   inventory.forEach((item: any) => {
     if (item.equipped && item.tags) {
       item.tags.forEach((t: string) => activeItemTags.add(t));
+    }
+    if (item.equipped && item.skills) {
+      item.skills.forEach((skill: any) => {
+        const isAuto = skill.type === 'passive_auto';
+        const isToggleActive = skill.type === 'passive_toggle' && skill.is_active;
+        if ((isAuto || isToggleActive) && skill.tags) {
+          skill.tags.forEach((t: string) => activeItemTags.add(t));
+        }
+      });
     }
   });
   reactiveSkills.forEach((skill: any) => {
@@ -397,30 +406,56 @@ export function SealCharacterSheet({
     return skill.condition_tags.every((t: string) => pool.has(t));
   };
 
-  // 1. Modificateurs d'objets (Inventaire)
+  // 1. Modificateurs d'objets (Inventaire + Compétences d'objets)
   inventory.forEach((item: any) => {
-  if (item.equipped && item.modifiers) {
-  item.modifiers.forEach((m: any, idx: number) => {
-  if (m.target === 'stat') {
-  if (m.mode === 'percent') {
-  statsPercent[m.targetId] = (statsPercent[m.targetId] || 0) + m.value;
-  } else if (m.mode === 'dice') {
-  statsFlat[m.targetId] = (statsFlat[m.targetId] || 0) + (item.rolledValues?.[idx] || 0);
-  } else {
-  statsFlat[m.targetId] = (statsFlat[m.targetId] || 0) + m.value;
-  }
-  } else if (m.target === 'bar') {
-  if (item.category === 'Arme') return;
-  if (!barsFlat[m.targetId]) barsFlat[m.targetId] = { value: 0, max: 0 };
-  const prop = m.targetProperty || 'max';
-  if (m.mode === 'dice') {
-  barsFlat[m.targetId][prop as 'value' | 'max'] += (item.rolledValues?.[idx] || 0);
-  } else {
-  barsFlat[m.targetId][prop as 'value' | 'max'] += m.value;
-  }
-  }
-  });
-  }
+    if (item.equipped) {
+      if (item.modifiers) {
+        item.modifiers.forEach((m: any, idx: number) => {
+          if (m.target === 'stat') {
+            if (m.mode === 'percent') {
+              statsPercent[m.targetId] = (statsPercent[m.targetId] || 0) + m.value;
+            } else if (m.mode === 'dice') {
+              statsFlat[m.targetId] = (statsFlat[m.targetId] || 0) + (item.rolledValues?.[idx] || 0);
+            } else {
+              statsFlat[m.targetId] = (statsFlat[m.targetId] || 0) + m.value;
+            }
+          } else if (m.target === 'bar') {
+            if (item.category === 'Arme') return;
+            if (!barsFlat[m.targetId]) barsFlat[m.targetId] = { value: 0, max: 0 };
+            const prop = m.targetProperty || 'max';
+            if (m.mode === 'dice') {
+              barsFlat[m.targetId][prop as 'value' | 'max'] += (item.rolledValues?.[idx] || 0);
+            } else {
+              barsFlat[m.targetId][prop as 'value' | 'max'] += m.value;
+            }
+          }
+        });
+      }
+      if (item.skills) {
+        item.skills.forEach((skill: any) => {
+          const isAuto = skill.type === 'passive_auto';
+          const isToggleActive = skill.type === 'passive_toggle' && skill.is_active;
+          const isConditional = skill.type === 'passive_conditional';
+          
+          let isActive = false;
+          if (isAuto || isToggleActive) isActive = true;
+          else if (isConditional) isActive = checkCondition(skill);
+          
+          if (isActive && skill.modifiers) {
+            skill.modifiers.forEach((m: any) => {
+              if (m.target === 'stat') {
+                if (m.mode === 'percent') statsPercent[m.targetId] = (statsPercent[m.targetId] || 0) + m.value;
+                else statsFlat[m.targetId] = (statsFlat[m.targetId] || 0) + m.value;
+              } else if (m.target === 'bar') {
+                if (!barsFlat[m.targetId]) barsFlat[m.targetId] = { value: 0, max: 0 };
+                const prop = m.targetProperty || 'max';
+                barsFlat[m.targetId][prop as 'value' | 'max'] += m.value;
+              }
+            });
+          }
+        });
+      }
+    }
   });
 
   // 2. Modificateurs de compétences (Reactive Skills)
@@ -471,7 +506,7 @@ export function SealCharacterSheet({
     if (b && b.formula) {
       let expr = b.formula.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       statDefs.forEach((s: any) => {
-        const val = calculatedModifiers.stats[s.id] || 0;
+        const val = (character?.stats as Record<string, number>)?.[s.id] || 20;
         
         // Remplacer par ID
         if (s.id) {
