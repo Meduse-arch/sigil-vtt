@@ -7,6 +7,7 @@ import { useUIStore } from '../../store/ui';
 import { useConfirmStore } from '../../store/confirm';
 import { usePeer } from '../../hooks/usePeer';
 import { useDiceStore } from '../../store/dice';
+import { useSessionStore } from '../../store/session';
 import { activityLogService } from '../../services/activity-log.service';
 import { 
  Sparkles, 
@@ -44,7 +45,8 @@ export function SkillsWindowContent({ sessionId, variant = 'default' }: SkillsWi
  const { tags } = useTagsStore();
  const { setShowSkillCreateModal, setSelectedSkill, selectedSkill } = useUIStore();
  const { broadcast, sendTo } = usePeer();
- const { setDiceResult } = useDiceStore();
+ const { setDiceResult, diceSharingEnabled } = useDiceStore();
+ const session = useSessionStore(state => state.sessions.find(s => s.id === sessionId));
 
  const [activeTab, setActiveTab] = useState<'inventory' | 'forge'>('inventory');
  const [search, setSearch] = useState('');
@@ -138,7 +140,7 @@ export function SkillsWindowContent({ sessionId, variant = 'default' }: SkillsWi
  label: `Bonus ${m.targetId}`,
  groups: rollRes.groups,
  color: '#3b82f6',
- secret: false,
+ secret: !diceSharingEnabled,
  timestamp: Date.now(),
  sender_id: user?.id,
  sender_name: character.name,
@@ -177,7 +179,7 @@ export function SkillsWindowContent({ sessionId, variant = 'default' }: SkillsWi
  label: eff.type === 'damage' ? 'Dégâts' : eff.type === 'heal' ? 'Soin' : eff.type === 'buff' ? 'Amélioration' : eff.type === 'debuff' ? 'Malédiction' : 'Utilitaire',
  groups: rollRes.groups,
  color: '#d4af37',
- secret: false,
+ secret: !diceSharingEnabled,
  timestamp: Date.now(),
  sender_id: user?.id,
  sender_name: character.name,
@@ -212,7 +214,7 @@ export function SkillsWindowContent({ sessionId, variant = 'default' }: SkillsWi
         const { parseAndRoll } = require('../../services/des.service');
         const rollRes = parseAndRoll(formula);
         costValue = rollRes.total;
-        diceResults.push({ rolls: rollRes.rolls || [], total: rollRes.total, bonus: 0, diceString: c.formula, label: `Coût en ${barId.toUpperCase()}`, color: '#ff4444', secret: false, timestamp: Date.now(), sender_id: user?.id, sender_name: character.name });
+        diceResults.push({ rolls: rollRes.rolls || [], total: rollRes.total, bonus: 0, diceString: c.formula, label: `Coût en ${barId.toUpperCase()}`, color: '#ff4444', secret: !diceSharingEnabled, timestamp: Date.now(), sender_id: user?.id, sender_name: character.name });
       } else if (c.mode === 'percent') {
         const maxKey = `max${barId.charAt(0).toUpperCase()}${barId.slice(1)}`;
         const maxVal = updatedBars[maxKey] || currentVal || 100;
@@ -240,10 +242,15 @@ export function SkillsWindowContent({ sessionId, variant = 'default' }: SkillsWi
  broadcast({ type: 'CHAR_UPDATE', payload: updatedChar });
  
  if (diceResults.length > 0) {
- const { useDiceStore } = await import('../../store/dice');
- useDiceStore.getState().setDiceResult(diceResults);
- diceResults.forEach(r => broadcast({ type: 'DICE_ROLL', payload: r }));
- }
+  const { useDiceStore } = await import('../../store/dice');
+  const diceState = useDiceStore.getState();
+  diceState.setDiceResult(diceResults);
+  if (diceState.diceSharingEnabled) {
+  diceResults.forEach(r => broadcast({ type: 'DICE_ROLL', payload: r }));
+  } else if (!isMJ && session?.hostPeerId) {
+  diceResults.forEach(r => sendTo(session.hostPeerId, { type: 'SECRET_DICE_ROLL', payload: r }));
+  }
+  }
 
  // Broadcast log de compétence
  const logPayload = {
@@ -354,7 +361,7 @@ export function SkillsWindowContent({ sessionId, variant = 'default' }: SkillsWi
         });
         const rollRes = parseAndRoll(formula);
         costValue = rollRes.total;
-        diceResults.push({ rolls: rollRes.rolls || [], total: rollRes.total, bonus: 0, diceString: c.formula, label: `Coût en ${barId.toUpperCase()}`, color: '#ff4444', secret: false, timestamp: Date.now(), sender_id: user?.id, sender_name: character.name });
+        diceResults.push({ rolls: rollRes.rolls || [], total: rollRes.total, bonus: 0, diceString: c.formula, label: `Coût en ${barId.toUpperCase()}`, color: '#ff4444', secret: !diceSharingEnabled, timestamp: Date.now(), sender_id: user?.id, sender_name: character.name });
       } else if (c.mode === 'percent') {
         const maxKey = `max${barId.charAt(0).toUpperCase()}${barId.slice(1)}`;
         const maxVal = updatedBars[maxKey] || currentVal || 100;
@@ -377,15 +384,34 @@ export function SkillsWindowContent({ sessionId, variant = 'default' }: SkillsWi
             formula = formula.replace(new RegExp(`(?<=\\b|d)${key}\\b`, 'gi'), `(${labelMapping[key]}=${statValues[key]})`);
           });
           const rollRes = parseAndRoll(formula);
-          diceResults.push({ rolls: rollRes.rolls || [], total: rollRes.total, bonus: 0, diceString: formulaStr, label, groups: rollRes.groups, color: '#d4af37', secret: false, timestamp: Date.now(), sender_id: user?.id, sender_name: character.name });
+          const rollTotal = Math.round(rollRes.total);
+          // Appliquer l'effet de soin directement sur les bars
+          if ((eff.type === 'heal' || eff.targetProperty === 'current') && eff.targetId) {
+            const barId = eff.targetId.toLowerCase();
+            const currentVal = updatedBars[barId] ?? 0;
+            const maxKey = `max${barId.charAt(0).toUpperCase()}${barId.slice(1)}`;
+            const maxVal = updatedBars[maxKey] ?? currentVal ?? 100;
+            updatedBars[barId] = Math.max(0, Math.min(maxVal, currentVal + rollTotal));
+            costApplied = true;
+          }
+          diceResults.push({ rolls: rollRes.rolls || [], total: rollTotal, bonus: 0, diceString: formulaStr, label, groups: rollRes.groups, color: '#d4af37', secret: !diceSharingEnabled, timestamp: Date.now(), sender_id: user?.id, sender_name: character.name });
         } else if (eff.valeur !== undefined) {
-          diceResults.push({ rolls: [eff.valeur], total: eff.valeur, bonus: 0, diceString: 'Fixe', label, color: '#d4af37', secret: false, timestamp: Date.now(), sender_id: user?.id, sender_name: character.name });
+          // Appliquer l'effet de soin fixe directement
+          if ((eff.type === 'heal' || eff.targetProperty === 'current') && eff.targetId) {
+            const barId = eff.targetId.toLowerCase();
+            const currentVal = updatedBars[barId] ?? 0;
+            const maxKey = `max${barId.charAt(0).toUpperCase()}${barId.slice(1)}`;
+            const maxVal = updatedBars[maxKey] ?? currentVal ?? 100;
+            updatedBars[barId] = Math.max(0, Math.min(maxVal, currentVal + (eff.valeur || 0)));
+            costApplied = true;
+          }
+          diceResults.push({ rolls: [eff.valeur], total: eff.valeur, bonus: 0, diceString: 'Fixe', label, color: '#d4af37', secret: !diceSharingEnabled, timestamp: Date.now(), sender_id: user?.id, sender_name: character.name });
         }
       });
     }
-    const finalResults = diceResults.length > 0 ? diceResults : [{ rolls: [], total: 0, bonus: 0, diceString: 'Utilisation', label: skill.name, color: '#d4af37', secret: false, timestamp: Date.now(), sender_id: user?.id, sender_name: character.name }];
+    const finalResults = diceResults.length > 0 ? diceResults : [{ rolls: [], total: 0, bonus: 0, diceString: 'Utilisation', label: skill.name, color: '#d4af37', secret: !diceSharingEnabled, timestamp: Date.now(), sender_id: user?.id, sender_name: character.name }];
     
-    // Si un coût a été appliqué, on met à jour le personnage
+    // Si un coût ou un soin a été appliqué, on met à jour le personnage
     if (costApplied) {
       const updatedChar = { ...character, bars: updatedBars };
       const { useCharactersStore } = await import('../../store/characters');
@@ -398,7 +424,11 @@ export function SkillsWindowContent({ sessionId, variant = 'default' }: SkillsWi
     }
 
     setDiceResult(finalResults);
-    finalResults.forEach(r => broadcast({ type: 'DICE_ROLL', payload: r }));
+    if (diceSharingEnabled) {
+      finalResults.forEach(r => broadcast({ type: 'DICE_ROLL', payload: r }));
+    } else if (!isMJ && session?.hostPeerId) {
+      finalResults.forEach(r => sendTo(session.hostPeerId, { type: 'SECRET_DICE_ROLL', payload: r }));
+    }
   };
 
  const handleGiveSkillToCharacter = async (skill: any) => {

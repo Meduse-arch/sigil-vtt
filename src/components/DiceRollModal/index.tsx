@@ -109,7 +109,7 @@ export const DiceRollModal: React.FC = () => {
  return () => { clearInterval(interval); clearTimeout(runeTimeout); clearTimeout(revealTimeout); };
  }, [diceResult, rollInfo]);
 
- const totalGlobal = diceResult ? diceResult.reduce((sum: number, r) => sum + r.total, 0) : 0;
+ const totalGlobal = diceResult ? Math.round(diceResult.reduce((sum: number, r) => sum + r.total, 0)) : 0;
 
  return createPortal(
  <div className={`fixed inset-0 z-[10000] ${!diceResult ? 'pointer-events-none' : ''}`}>
@@ -155,7 +155,7 @@ export const DiceRollModal: React.FC = () => {
  <div key={`${i}-${groupIdx}-${rollIdx}`} className="flex flex-col items-center gap-1 min-w-[30px]">
  <DiceShape faces={group.faces} className="w-5 h-5 opacity-40" />
  <span className="font-quantico text-xs text-silver-bright opacity-40 uppercase text-center">{label}</span>
- <span className="font-quantico font-black text-sm text-glacier-bright">{val}</span>
+ <span className="font-quantico font-black text-sm text-glacier-bright">{Math.round(val)}</span>
  </div>
  );
  })
@@ -171,7 +171,7 @@ export const DiceRollModal: React.FC = () => {
  <div key={`${i}-${j}`} className="flex flex-col items-center gap-1 min-w-[30px]">
  <DiceShape faces={faces} className="w-5 h-5 opacity-40" />
  <span className="font-quantico text-xs text-silver-bright opacity-40 uppercase text-center">{label}</span>
- <span className="font-quantico font-black text-sm text-glacier-bright">{val}</span>
+ <span className="font-quantico font-black text-sm text-glacier-bright">{Math.round(val)}</span>
  </div>
  ));
  })}
@@ -179,7 +179,7 @@ export const DiceRollModal: React.FC = () => {
  <div className="flex flex-wrap justify-center gap-2 opacity-60 w-full pt-4 border-t border-silver-DEFAULT/10">
  {diceResult.map((res, i: number) => (
  <div key={i} className="text-[11px] font-mono border border-silver-DEFAULT/20 px-2 py-0.5 text-glacier-bright bg-glacier-DEFAULT/5 text-center uppercase">
- {res.diceString} = {res.total}
+ {res.diceString} = {Math.round(res.total)}
  </div>
  ))}
  </div>

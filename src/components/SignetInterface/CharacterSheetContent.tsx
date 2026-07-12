@@ -760,6 +760,9 @@ export function CharacterSheetContent({
  });
 
  // 2. Traiter chaque effet configuré
+ const updatedBars = { ...(character.bars || {}) };
+ let costApplied = false;
+
  if (skill.effects && skill.effects.length > 0) {
  skill.effects.forEach((eff: any) => {
  let label = eff.description || skill.name;
@@ -779,12 +782,22 @@ export function CharacterSheetContent({
  });
 
  const rollRes = parseAndRoll(formula);
- const finalTotal = (rollRes.total || 0) + modifier;
+ const rollTotal = Math.round((rollRes.total || 0) + modifier);
  const modStr = modifier !== 0 ? (modifier > 0 ? `+${modifier}` : modifier) : '';
  
+ // Appliquer le soin sur les bars
+ if ((eff.type === 'heal' || eff.targetProperty === 'current') && eff.targetId) {
+ const barId = eff.targetId.toLowerCase();
+ const currentVal = updatedBars[barId] ?? 0;
+ const maxKey = `max${barId.charAt(0).toUpperCase()}${barId.slice(1)}`;
+ const maxVal = updatedBars[maxKey] ?? currentVal ?? 100;
+ updatedBars[barId] = Math.max(0, Math.min(maxVal, currentVal + rollTotal));
+ costApplied = true;
+ }
+
  diceResults.push({
  rolls: rollRes.rolls || [],
- total: finalTotal,
+ total: rollTotal,
  bonus: modifier,
  diceString: `${formulaStr}${modStr}`,
  label: label,
@@ -796,6 +809,15 @@ export function CharacterSheetContent({
  sender_name: character.name
  });
  } else if (eff.valeur !== undefined) {
+ // Appliquer le soin fixe
+ if ((eff.type === 'heal' || eff.targetProperty === 'current') && eff.targetId) {
+ const barId = eff.targetId.toLowerCase();
+ const currentVal = updatedBars[barId] ?? 0;
+ const maxKey = `max${barId.charAt(0).toUpperCase()}${barId.slice(1)}`;
+ const maxVal = updatedBars[maxKey] ?? currentVal ?? 100;
+ updatedBars[barId] = Math.max(0, Math.min(maxVal, currentVal + (eff.valeur || 0)));
+ costApplied = true;
+ }
  diceResults.push({
  rolls: [eff.valeur],
  total: eff.valeur,
@@ -842,6 +864,14 @@ export function CharacterSheetContent({
 
  setDiceResult(finalResults);
  
+ // Appliquer les soins/coûts sur le personnage si nécessaire
+ if (costApplied) {
+ const updatedChar = { ...character, bars: updatedBars };
+ addOrUpdateCharacter(updatedChar, false);
+ if (window.electronAPI) await addSessionCharacter(updatedChar);
+ broadcast({ type: 'CHAR_UPDATE', payload: updatedChar });
+ }
+
  const logEntry = {
  id: crypto.randomUUID(),
  type: 'competence',

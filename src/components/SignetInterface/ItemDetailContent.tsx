@@ -6,6 +6,7 @@ import { useCharactersStore } from '../../store/characters';
 import { usePeer } from '../../hooks/usePeer';
 import { useAuthStore } from '../../store/auth';
 import { useDiceStore } from '../../store/dice';
+import { useSessionStore } from '../../store/session';
 import { DEFAULT_STATS, DEFAULT_BARS } from '../../systems/seal/constants';
 import { AssetImage } from '../AssetImage';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -43,8 +44,8 @@ export function ItemDetailContent({
  const { items } = useItemsStore();
  const { characters } = useCharactersStore();
  const { user } = useAuthStore();
- const { broadcast } = usePeer();
- const { setDiceResult } = useDiceStore();
+ const { broadcast, sendTo } = usePeer();
+ const { setDiceResult, diceSharingEnabled } = useDiceStore();
 
  const [showSkillsModal, setShowSkillsModal] = useState(false);
  const [selectedSkillForDetail, setSelectedSkillForDetail] = useState<any | null>(null);
@@ -120,7 +121,7 @@ export function ItemDetailContent({
       });
       const rollRes = parseAndRoll(formula);
       costValue = rollRes.total;
-      diceResults.push({ rolls: rollRes.rolls || [], total: rollRes.total, bonus: 0, diceString: c.formula, label: `Coût en ${barId.toUpperCase()}`, color: '#ff4444', secret: false, timestamp: Date.now(), sender_id: user?.id, sender_name: character.name });
+      diceResults.push({ rolls: rollRes.rolls || [], total: rollRes.total, bonus: 0, diceString: c.formula, label: `Coût en ${barId.toUpperCase()}`, color: '#ff4444', secret: !diceSharingEnabled, timestamp: Date.now(), sender_id: user?.id, sender_name: character.name });
     } else if (c.mode === 'percent') {
       const maxKey = `max${barId.charAt(0).toUpperCase()}${barId.slice(1)}`;
       const maxVal = updatedBars[maxKey] || currentVal || 100;
@@ -153,7 +154,7 @@ export function ItemDetailContent({
       }
     });
   }
-  const finalResults = diceResults.length > 0 ? diceResults : [{ rolls: [], total: 0, bonus: 0, diceString: 'Utilisation', label: skill.name, color: '#d4af37', secret: false, timestamp: Date.now(), sender_id: user?.id, sender_name: character.name }];
+  const finalResults = diceResults.length > 0 ? diceResults : [{ rolls: [], total: 0, bonus: 0, diceString: 'Utilisation', label: skill.name, color: '#d4af37', secret: !diceSharingEnabled, timestamp: Date.now(), sender_id: user?.id, sender_name: character.name }];
   
   if (costApplied) {
     const updatedChar = { ...character, bars: updatedBars };
@@ -168,7 +169,15 @@ export function ItemDetailContent({
   }
 
   setDiceResult(finalResults);
-  finalResults.forEach(r => broadcast({ type: 'DICE_ROLL', payload: r }));
+  if (diceSharingEnabled) {
+    finalResults.forEach(r => broadcast({ type: 'DICE_ROLL', payload: r }));
+  } else {
+    const sessionStore = useSessionStore.getState();
+    const hostPeerId = sessionStore.sessions.find(s => s.id)?.hostPeerId;
+    if (!isMJ && hostPeerId) {
+      finalResults.forEach(r => sendTo(hostPeerId, { type: 'SECRET_DICE_ROLL', payload: r }));
+    }
+  }
   
   const logPayload = {
     skill_id: skill.id,
@@ -215,7 +224,7 @@ export function ItemDetailContent({
         });
         const rollRes = parseAndRoll(formula);
         costValue = rollRes.total;
-        diceResults.push({ rolls: rollRes.rolls || [], total: rollRes.total, bonus: 0, diceString: c.formula, label: `Coût en ${barId.toUpperCase()}`, color: '#ff4444', secret: false, timestamp: Date.now(), sender_id: user?.id, sender_name: character.name });
+        diceResults.push({ rolls: rollRes.rolls || [], total: rollRes.total, bonus: 0, diceString: c.formula, label: `Coût en ${barId.toUpperCase()}`, color: '#ff4444', secret: !diceSharingEnabled, timestamp: Date.now(), sender_id: user?.id, sender_name: character.name });
       } else if (c.mode === 'percent') {
         const maxKey = `max${barId.charAt(0).toUpperCase()}${barId.slice(1)}`;
         const maxVal = updatedBars[maxKey] || currentVal || 100;
@@ -243,7 +252,7 @@ export function ItemDetailContent({
             label: `Bonus ${m.targetId}`,
             groups: rollRes.groups,
             color: '#3b82f6',
-            secret: false,
+            secret: !diceSharingEnabled,
             timestamp: Date.now(),
             sender_id: user?.id,
             sender_name: character.name,
@@ -273,7 +282,7 @@ export function ItemDetailContent({
               label: eff.type === 'damage' ? 'Dégâts' : eff.type === 'heal' ? 'Soin' : eff.type === 'buff' ? 'Amélioration' : eff.type === 'debuff' ? 'Malédiction' : 'Utilitaire',
               groups: rollRes.groups,
               color: '#d4af37',
-              secret: false,
+              secret: !diceSharingEnabled,
               timestamp: Date.now(),
               sender_id: user?.id,
               sender_name: character.name,
@@ -315,7 +324,15 @@ export function ItemDetailContent({
   
   if (diceResults.length > 0) {
     setDiceResult(diceResults);
-    diceResults.forEach(r => broadcast({ type: 'DICE_ROLL', payload: r }));
+    if (diceSharingEnabled) {
+      diceResults.forEach(r => broadcast({ type: 'DICE_ROLL', payload: r }));
+    } else {
+      const sessionStore = useSessionStore.getState();
+      const hostPeerId = sessionStore.sessions.find(s => s.id)?.hostPeerId;
+      if (!isMJ && hostPeerId) {
+        diceResults.forEach(r => sendTo(hostPeerId, { type: 'SECRET_DICE_ROLL', payload: r }));
+      }
+    }
   }
 
   const logPayload = {

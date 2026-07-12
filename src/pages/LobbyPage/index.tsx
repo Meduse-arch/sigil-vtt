@@ -139,6 +139,10 @@ export function LobbyPage({ sessionId, onLeave }: LobbyPageProps) {
  const newPeerId = data.payload.peer_id || fromPeerId;
  const { pseudo, userId, role } = data.payload;
  
+ if (userId) {
+   usePeersStore.getState().setPeerUser(newPeerId, userId);
+ }
+ 
  // Nettoyer d'abord
  await removeSessionPlayer(sessionIdRef.current, newPeerId);
  // Puis ajouter
@@ -179,7 +183,11 @@ export function LobbyPage({ sessionId, onLeave }: LobbyPageProps) {
  if (combatState.isActive) {
  broadcastRef.current({ type: 'COMBAT_STATE_UPDATE', payload: combatState });
  }
- } 
+ }
+ else if (data.type === 'PLAYER_LEAVE' && isHostRef.current) {
+   const leavingPeerId = data.payload?.peerId || fromPeerId;
+   usePeersStore.getState().removePeerUser(leavingPeerId);
+ }
  else if (data.type === 'SESSION_METADATA' && !isHostRef.current) {
  console.log(`[LobbyPage] Métadonnées reçues:`, data.payload);
  setLocalMetadata(data.payload);

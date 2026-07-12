@@ -311,11 +311,17 @@ export function BoardCanvas({ sessionId, imageUrl, maps, currentMapId, character
  // ✅ Un joueur demande à bouger un token (Le MJ arbitre)
  const { id, x, y } = data.payload;
  
-  // Validation de base : le token doit exister. (La sécurité fine peerId <-> userId nécessiterait un mapping)
   const char = characters.find(c => c.id === id);
   if (!char) {
   console.warn(`[Host] Tentative de déplacement pour un token introuvable: ${id}`);
   return;
+  }
+ 
+  // Validation de sécurité : le joueur est-il le propriétaire du token ?
+  const fromUserId = usePeersStore.getState().peerUserMap[fromPeerId];
+  if (char.user_id !== fromUserId) {
+    console.warn(`[Host] Déplacement refusé : peer ${fromPeerId} (userId: ${fromUserId}) ne possède pas le token ${id} (ownerId: ${char.user_id})`);
+    return;
   }
  
  console.log(`[Host] Autorisation de mouvement pour ${id} vers ${x},${y}`);

@@ -5,6 +5,8 @@ import { useAuthStore, SecurityLevel } from '../../store/auth';
 import { useUIStore } from '../../store/ui';
 import { useConfirmStore } from '../../store/confirm';
 import { usePeer } from '../../hooks/usePeer';
+import { useDiceStore } from '../../store/dice';
+import { useSessionStore } from '../../store/session';
 import { activityLogService } from '../../services/activity-log.service';
 import { Package, Plus, Trash2, Search, Hammer, User, Shield, Star, Sword, Sparkles, Gem, FlaskConical, ChevronRight, PenTool, Zap, X } from 'lucide-react';
 import { addSessionCharacter } from '../../services/characters.service';
@@ -36,7 +38,9 @@ export function InventoryWindowContent({ sessionId, variant = 'default' }: Inven
  const character = characters.find(c => controlledCharacterId ? c.id === controlledCharacterId : (!!user?.id && c.user_id === user.id));
  const { items, removeItem } = useItemsStore();
  const { setShowCreateModal, setSelectedItem, selectedItem } = useUIStore();
- const { broadcast } = usePeer();
+ const { broadcast, sendTo } = usePeer();
+  const { diceSharingEnabled } = useDiceStore();
+  const session = useSessionStore(state => state.sessions.find(s => s.id === sessionId));
 
  const [activeTab, setActiveTab] = useState<'inventory' | 'forge'>('inventory');
  const [search, setSearch] = useState('');
@@ -145,7 +149,7 @@ export function InventoryWindowContent({ sessionId, variant = 'default' }: Inven
  label: `Bonus ${m.targetId}`,
  groups: rollRes.groups,
  color: '#d4af37',
- secret: false,
+ secret: !diceSharingEnabled,
  timestamp: Date.now(),
  sender_id: user?.id,
  sender_name: character.name
@@ -169,8 +173,13 @@ export function InventoryWindowContent({ sessionId, variant = 'default' }: Inven
  
  if (diceResults.length > 0) {
  const { useDiceStore } = await import('../../store/dice');
- useDiceStore.getState().setDiceResult(diceResults);
+ const diceState = useDiceStore.getState();
+ diceState.setDiceResult(diceResults);
+ if (diceState.diceSharingEnabled) {
  diceResults.forEach(r => broadcast({ type: 'DICE_ROLL', payload: r }));
+ } else if (!isMJ && session?.hostPeerId) {
+ diceResults.forEach(r => sendTo(session.hostPeerId, { type: 'SECRET_DICE_ROLL', payload: r }));
+ }
  }
  
  const updatedItem = updatedChar.inventory.find((i: any) => i.instanceId === targetInstanceId);
