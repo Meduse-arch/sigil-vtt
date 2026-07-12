@@ -15,7 +15,8 @@ const DIE_TYPES = [4, 6, 8, 10, 12, 20, 100];
 
 export function LancerDes({ sessionId }: { sessionId: string }) {
  const user = useAuthStore(state => state.user);
- const character = useCharactersStore(state => state.characters.find(c => !!user?.id && c.user_id === user.id));
+ const { characters } = useCharactersStore();
+ const character = characters.find(c => !!user?.id && c.user_id === user.id);
  const { 
  diceResult, 
  setDiceResult, 
@@ -234,7 +235,7 @@ export function LancerDes({ sessionId }: { sessionId: string }) {
  className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex flex-col gap-1"
  >
  <div className="flex justify-between items-center">
- <span className="text-xs font-quantico text-silver-bright/60 uppercase">{log.character_name}</span>
+ <span className="text-xs font-quantico text-silver-bright/60 uppercase">{characters.find(c => c.id === log.character_id)?.name || log.character_name}</span>
  <span className="text-xs font-mono text-white/60">{new Date(log.timestamp).toLocaleTimeString()}</span>
  </div>
  <div className="flex justify-between items-end">

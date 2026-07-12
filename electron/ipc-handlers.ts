@@ -413,7 +413,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null) {
     try {
       const db = getSessionDb(sessionId);
       db.prepare('UPDATE characters SET name = ?, stats = ?, skills = ?, bars = ?, image_url = ?, inventory = ?, custom_skills = ?, type = ?, is_template = ?, quests = ? WHERE id = ?')
-        .run(name, JSON.stringify(stats), JSON.stringify(skills || {}), JSON.stringify(bars), imageUrl || null, JSON.stringify(inventory || []), JSON.stringify(custom_skills || []), type || null, is_template ? 1 : 0, JSON.stringify(quests || []), id);
+        .run(name, JSON.stringify(stats || {}), JSON.stringify(skills || {}), JSON.stringify(bars || {}), imageUrl || null, JSON.stringify(inventory || []), JSON.stringify(custom_skills || []), type || null, is_template ? 1 : 0, JSON.stringify(quests || []), id);
     } catch (e) {
       console.error('[DB] characters:update error', e);
     }
@@ -423,7 +423,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null) {
     try {
       const db = getSessionDb(sessionId);
       db.prepare('UPDATE characters SET bars = ? WHERE id = ?')
-        .run(JSON.stringify(bars), id);
+        .run(JSON.stringify(bars || {}), id);
     } catch (e) {
       console.error('[DB] characters:updateBars error', e);
     }

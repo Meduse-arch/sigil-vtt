@@ -100,7 +100,7 @@ export function ItemDetailContent({
     labelMapping[s.id.toLowerCase()] = s.name;
   });
   DEFAULT_BARS.forEach((b: any) => {
-    statValues[b.id.toLowerCase()] = (character.bars?.[b.id] || 0);
+    statValues[b.id.toLowerCase()] = character.bars?.[b.id]?.max || 100;
     labelMapping[b.id.toLowerCase()] = b.name;
   });
 
@@ -110,7 +110,7 @@ export function ItemDetailContent({
 
   const costsToApply = skill.costs || (skill.cost ? [skill.cost] : []);
   
-  costsToApply.forEach((c: any) => {
+  costsToApply.filter((c: any) => c != null).forEach((c: any) => {
     const barId = c.barId?.toLowerCase();
     const currentVal = updatedBars[barId] || 0;
     let costValue = 0;
@@ -135,7 +135,7 @@ export function ItemDetailContent({
   });
 
   if (skill.effects && skill.effects.length > 0) {
-    skill.effects.forEach((eff: any) => {
+    skill.effects.filter((e: any) => e != null).forEach((eff: any) => {
       const label = eff.description || skill.name;
       const formulaStr = eff.formula || '';
       if (eff.mode === 'dice' && formulaStr) {
@@ -209,11 +209,11 @@ export function ItemDetailContent({
   const statValues: Record<string, number> = {};
   const labelMapping: Record<string, string> = {};
   DEFAULT_STATS.forEach((s: any) => { statValues[s.id.toLowerCase()] = (character.stats?.[s.id] || 0); labelMapping[s.id.toLowerCase()] = s.name; });
-  DEFAULT_BARS.forEach((b: any) => { statValues[b.id.toLowerCase()] = (character.bars?.[b.id] || 0); labelMapping[b.id.toLowerCase()] = b.name; });
+  DEFAULT_BARS.forEach((b: any) => { statValues[b.id.toLowerCase()] = character.bars?.[b.id]?.max || 100; labelMapping[b.id.toLowerCase()] = b.name; });
 
   if (newActive) {
     const costsToApply = skillToToggle.costs || (skillToToggle.cost ? [skillToToggle.cost] : []);
-    costsToApply.forEach((c: any) => {
+    costsToApply.filter((c: any) => c != null).forEach((c: any) => {
       const barId = c.barId?.toLowerCase();
       const currentVal = updatedBars[barId] || 0;
       let costValue = 0;
@@ -237,7 +237,7 @@ export function ItemDetailContent({
     });
 
     updatedModifiers = updatedModifiers.map((m: any) => {
-      if (m.mode === 'dice' && m.formula) {
+      if (m && m.mode === 'dice' && m.formula) {
         let formula = m.formula;
         Object.keys(statValues).sort((a, b) => b.length - a.length).forEach(key => {
           formula = formula.replace(new RegExp(`(?<=\\b|d)${key}\\b`, 'gi'), `(${labelMapping[key]}=${statValues[key]})`);
@@ -423,9 +423,9 @@ export function ItemDetailContent({
  </div>
  
  <div className="space-y-1.5">
- {item.modifiers && item.modifiers.length > 0 ? (
+ {item.modifiers && item.modifiers.filter((m:any) => m != null).length > 0 ? (
  <>
- {item.modifiers.map((m: any, i: number) => (
+ {item.modifiers.filter((m:any) => m != null).map((m: any, i: number) => (
  <div 
  key={i} 
  className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white/[0.02] border border-white/5 transition-all hover:border-silver-DEFAULT/20"

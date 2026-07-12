@@ -115,7 +115,7 @@ export function SkillsWindowContent({ sessionId, variant = 'default' }: SkillsWi
  });
  
  updatedModifiers = updatedModifiers.map((m: any) => {
- if (m.mode === 'dice' && m.formula) {
+ if (m && m.mode === 'dice' && m.formula) {
  let formula = m.formula;
  const sortedStats = Object.keys(statValues).sort((a, b) => b.length - a.length);
  sortedStats.forEach((key) => {
@@ -155,7 +155,7 @@ export function SkillsWindowContent({ sessionId, variant = 'default' }: SkillsWi
 
  if (skillToToggle.effects && skillToToggle.effects.length > 0) {
  skillToToggle.effects.forEach((eff: any) => {
- if (eff.mode === 'dice' && eff.formula) {
+ if (eff && eff.mode === 'dice' && eff.formula) {
  let formula = eff.formula;
  const sortedStats = Object.keys(statValues).sort((a, b) => b.length - a.length);
  sortedStats.forEach((key) => {
@@ -196,7 +196,7 @@ export function SkillsWindowContent({ sessionId, variant = 'default' }: SkillsWi
 
   if (newActive) {
     const costsToApply = skillToToggle.costs || (skillToToggle.cost ? [skillToToggle.cost] : []);
-    costsToApply.forEach((c: any) => {
+    costsToApply.filter((c: any) => c != null).forEach((c: any) => {
       const barId = c.barId?.toLowerCase();
       const currentVal = updatedBars[barId] || 0;
       let costValue = 0;
@@ -287,7 +287,7 @@ export function SkillsWindowContent({ sessionId, variant = 'default' }: SkillsWi
 
     (character.inventory || []).forEach((item: any) => {
       if (item.equipped && item.modifiers) {
-        item.modifiers.forEach((m: any, idx: number) => {
+        item.modifiers.filter((m: any) => m != null).forEach((m: any, idx: number) => {
           if (m.target === 'stat') {
             if (m.mode === 'dice') statsFlat[m.targetId] = (statsFlat[m.targetId] || 0) + (item.rolledValues?.[idx] || 0);
             else statsFlat[m.targetId] = (statsFlat[m.targetId] || 0) + (m.value || 0);
@@ -340,7 +340,7 @@ export function SkillsWindowContent({ sessionId, variant = 'default' }: SkillsWi
       labelMapping[s.id.toLowerCase()] = s.name;
     });
     DEFAULT_BARS.forEach(b => {
-      statValues[b.id.toLowerCase()] = (character.bars?.[b.id] || 0);
+      statValues[b.id.toLowerCase()] = character.bars?.[b.id] || 100;
       labelMapping[b.id.toLowerCase()] = b.name;
     });
 
@@ -350,7 +350,7 @@ export function SkillsWindowContent({ sessionId, variant = 'default' }: SkillsWi
 
     const costsToApply = skill.costs || (skill.cost ? [skill.cost] : []);
     
-    costsToApply.forEach((c: any) => {
+    costsToApply.filter((c: any) => c != null).forEach((c: any) => {
       const barId = c.barId?.toLowerCase();
       const currentVal = updatedBars[barId] || 0;
       let costValue = 0;
@@ -375,7 +375,7 @@ export function SkillsWindowContent({ sessionId, variant = 'default' }: SkillsWi
     });
 
     if (skill.effects && skill.effects.length > 0) {
-      skill.effects.forEach((eff: any) => {
+      skill.effects.filter((e: any) => e != null).forEach((eff: any) => {
         const label = eff.description || skill.name;
         const formulaStr = eff.formula || '';
         if (eff.mode === 'dice' && formulaStr) {

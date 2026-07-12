@@ -115,7 +115,7 @@ export function SkillDetailContent({
  <span className="px-1.5 py-0.5 rounded bg-glacier-DEFAULT/10 text-glacier-bright text-[6px] font-quantico font-black tracking-widest uppercase border border-silver-DEFAULT/20">
  {getTypeLabel(skill.type)}
  </span>
- {(skill.costs || (skill.cost ? [{ id: 'legacy', mode: 'fixed', value: skill.cost.value, barId: skill.cost.barId }] : [])).map((c: any) => (
+ {(skill.costs || (skill.cost ? [{ id: 'legacy', mode: 'fixed', value: skill.cost.value, barId: skill.cost.barId }] : [])).filter((c: any) => c != null).map((c: any) => (
  <span key={c.id} className="px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 text-[6px] font-mono border border-red-500/20">
  {c.mode === 'dice' ? c.formula : `${c.value}${c.mode === 'percent' ? '%' : ''}`} {DEFAULT_BARS.find(b => b.id === c.barId)?.name || c.barId}
  </span>
@@ -157,7 +157,7 @@ export function SkillDetailContent({
         </div>
         
         <div className="space-y-1.5">
- {skill.effects.map((effect) => (
+          {skill.effects.filter((e: any) => e != null).map((effect: any) => (
  <div key={effect.id} className="p-2 rounded-xl bg-white/[0.02] border border-white/5 flex flex-col">
  <div className="flex items-center justify-between gap-2">
  <div className="flex items-center gap-1.5 min-w-0">
@@ -186,7 +186,7 @@ export function SkillDetailContent({
  <div className="h-px flex-1 bg-glacier-DEFAULT/30" />
  </div>
  <div className="grid grid-cols-1 gap-1.5">
- {skill.modifiers.map((m, i) => (
+  {skill.modifiers.filter((m: any) => m != null).map((m: any, i: number) => (
  <div key={i} className="flex flex-col p-2 rounded-xl bg-white/[0.02] border border-white/5 hover:border-silver-DEFAULT/20 transition-all">
  <div className="flex items-center justify-between gap-2">
  <div className="flex flex-col min-w-0">

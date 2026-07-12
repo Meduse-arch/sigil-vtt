@@ -51,17 +51,17 @@ export function SkillCreationModal({ sessionId }: SkillCreationModalProps) {
  setType(skillToEdit.type || 'active');
  setImageUrl(skillToEdit.image_url || '');
  setSelectedTags(skillToEdit.tags || []);
-      if (skillToEdit.costs) {
-        setCosts(skillToEdit.costs);
+      if (skillToEdit.costs && Array.isArray(skillToEdit.costs)) {
+        setCosts(skillToEdit.costs.filter((c: any) => c != null));
       } else if (skillToEdit.cost) {
-        setCosts([{ id: crypto.randomUUID(), mode: 'fixed', value: skillToEdit.cost.value, barId: skillToEdit.cost.barId }]);
+        setCosts([{ id: window.crypto.randomUUID ? window.crypto.randomUUID() : 'temp-id', mode: 'fixed', value: skillToEdit.cost.value, barId: skillToEdit.cost.barId }]);
       } else {
         setCosts([]);
       }
- setEffects(skillToEdit.effects || []);
- setModifiers(skillToEdit.modifiers || []);
- setConditionType(skillToEdit.condition_type || 'none');
- setConditionTags(skillToEdit.condition_tags || []);
+      setEffects(Array.isArray(skillToEdit.effects) ? skillToEdit.effects.filter((e: any) => e != null) : []);
+      setModifiers(Array.isArray(skillToEdit.modifiers) ? skillToEdit.modifiers.filter((m: any) => m != null) : []);
+      setConditionType(skillToEdit.condition_type || 'none');
+      setConditionTags(Array.isArray(skillToEdit.condition_tags) ? skillToEdit.condition_tags.filter((t: any) => t != null) : []);
  } else {
  setName('');
  setDescription('');
@@ -455,20 +455,20 @@ export function SkillCreationModal({ sessionId }: SkillCreationModalProps) {
  </select>
  <div className="flex-1">
  {m.mode === 'dice' ? (
- <input 
- type="text" 
- placeholder="1d6..."
- value={m.formula || ''} 
- onChange={e => updateModifier(i, { formula: e.target.value })}
- className="w-full bg-glacier-DEFAULT/10 border-2 border-silver-DEFAULT/40 rounded-xl px-2 py-2 text-xs text-glacier-bright text-center font-mono outline-none focus:border-glacier-bright"
- />
+   <input 
+     type="text" 
+     placeholder="1d6..."
+     value={m.formula || ''} 
+     onChange={e => updateModifier(i, { formula: e.target.value })}
+     className="w-full bg-glacier-DEFAULT/10 border border-silver-DEFAULT/40 rounded-xl px-3 py-2.5 text-[11px] font-mono text-glacier-bright text-center outline-none focus:border-glacier-bright"
+   />
  ) : (
- <input 
- type="number" 
- value={m.value} 
- onChange={e => updateModifier(i, { value: parseInt(e.target.value) || 0 })}
- className="w-full bg-glacier-DEFAULT/10 border border-silver-DEFAULT/40 rounded-xl px-3 py-2.5 text-[11px] font-mono text-glacier-bright text-center outline-none focus:border-glacier-bright"
- />
+   <input 
+     type="number" 
+     value={m.value} 
+     onChange={e => updateModifier(i, { value: parseInt(e.target.value) || 0 })}
+     className="w-full bg-glacier-DEFAULT/10 border border-silver-DEFAULT/40 rounded-xl px-3 py-2.5 text-[11px] font-mono text-glacier-bright text-center outline-none focus:border-glacier-bright"
+   />
  )}
  </div>
  </div>

@@ -54,8 +54,8 @@ export function ItemCreationModal({ sessionId }: ItemCreationModalProps) {
  setDescription(itemToEdit.description || '');
  setCategory(itemToEdit.category || 'Divers');
  setImageUrl(itemToEdit.image_url || '');
- setModifiers(itemToEdit.modifiers || []);
- setSelectedTags(itemToEdit.tags || []);
+ setModifiers(Array.isArray(itemToEdit.modifiers) ? itemToEdit.modifiers.filter((m: any) => m != null) : []);
+ setSelectedTags(Array.isArray(itemToEdit.tags) ? itemToEdit.tags.filter((t: any) => t != null) : []);
  setSelectedSkills(itemToEdit.skills || []);
  } else if (showCreateModal) {
  resetForm();

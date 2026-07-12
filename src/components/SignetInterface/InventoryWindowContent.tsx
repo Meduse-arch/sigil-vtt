@@ -114,14 +114,14 @@ export function InventoryWindowContent({ sessionId, variant = 'default' }: Inven
  statValues[s.id] = character.stats?.[s.id] || 20;
  labelMapping[s.id] = s.name;
  });
- DEFAULT_BARS.forEach(b => {
- statValues[b.id] = character.bars?.[b.id] || 100;
- labelMapping[b.id] = b.name;
- });
+  DEFAULT_BARS.forEach(b => {
+    statValues[b.id] = character.bars?.[b.id] || 100;
+    labelMapping[b.id] = b.name;
+  });
 
  rolledValues = [];
  
- item.modifiers.forEach((m: any, idx: number) => {
+ (item.modifiers || []).filter((m: any) => m != null).forEach((m: any, idx: number) => {
  if (m.mode === 'dice' && m.formula) {
  let formula = m.formula;
  const sortedStats = Object.keys(statValues).sort((a, b) => b.length - a.length);
