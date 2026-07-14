@@ -403,6 +403,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow | null) {
   ipcMain.handle('characters:remove', (_, sessionId, id) => {
     try {
       const db = getSessionDb(sessionId);
+      db.prepare('DELETE FROM map_tokens WHERE character_id = ?').run(id);
       db.prepare('DELETE FROM characters WHERE id = ?').run(id);
     } catch (e) {
       console.error('[DB] characters:remove error', e);

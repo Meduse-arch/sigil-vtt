@@ -398,6 +398,8 @@ export function BoardCanvas({ sessionId, imageUrl, maps, currentMapId, character
  } else if (type === 'GET_TOKEN_STATUS') {
  const isOnMap = mapTokens.some(t => t.character_id === payload.id);
  channel.postMessage({ type: 'TOKEN_STATUS_RESPONSE', payload: { id: payload.id, isOnMap } });
+ } else if (type === 'TOKEN_FORCE_REMOVE') {
+ removeToken(payload.id);
  } else if (type === 'REFRESH_TOKEN_DATA') {
  // ✅ CRITIQUE : Si des données de perso arrivent après le token, on met à jour le token existant
  console.log(`[BoardCanvas] Refreshing token data for: ${payload.name}`);
@@ -413,7 +415,7 @@ export function BoardCanvas({ sessionId, imageUrl, maps, currentMapId, character
  }
  };
  return () => channel.close();
- }, [sessionId, isHost, characters, handleToggleToken, mapTokens, broadcast, addToken, currentCharacterId, user?.id, isMJ]);
+ }, [sessionId, isHost, characters, handleToggleToken, mapTokens, broadcast, addToken, removeToken, currentCharacterId, user?.id, isMJ]);
 
  // Sync vers fenêtre externe (mode projecteur)
  useEffect(() => {

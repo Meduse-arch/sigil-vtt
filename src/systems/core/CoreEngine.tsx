@@ -195,8 +195,35 @@ export function CoreEngine({ sessionId, systemConfig, onPause, onLeave, players 
       const { type, payload } = data;
       if (type === 'CHAR_UPDATE') {
         addOrUpdateCharacter(payload, true);
+        if (isHost && window.electronAPI) {
+          import('../../services/characters.service').then(({ updateSessionCharacter }) => {
+            updateSessionCharacter(
+              sessionId,
+              payload.id,
+              payload.name,
+              payload.stats,
+              payload.skills,
+              payload.bars,
+              payload.image_url,
+              payload.inventory,
+              payload.custom_skills,
+              payload.type,
+              payload.is_template,
+              payload.quests
+            );
+          });
+        }
       } else if (type === 'CHAR_DELETE') {
         removeCharacter(sessionId, payload.id);
+        if (isHost && window.electronAPI) {
+          import('../../services/characters.service').then(({ removeSessionCharacter }) => {
+            removeSessionCharacter(sessionId, payload.id);
+          });
+        }
+        // Force remove token from map
+        const channel = new BroadcastChannel(`board_actions_${sessionId}`);
+        channel.postMessage({ type: 'TOKEN_FORCE_REMOVE', payload: { id: payload.id } });
+        channel.close();
       } else if (type === 'MAP_CHANGE' && !isHost) {
         if (payload.id) {
           setCurrentMapId(payload.id);
